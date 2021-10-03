@@ -1,13 +1,22 @@
 from numpy.lib.shape_base import split
-from src.utils.all_utils import read_yaml, create_directory, save_local_df
+from src.utils.all_utils import read_yaml, create_directory, save_reports
 import argparse
 import pandas as pd
 import os
-from sklearn.linear_model import ElasticNet
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 import joblib
+import numpy as np
 
+def evaluate_metrices(actual_values, predicted_values):
+    """
+    Evaluate the model using the metrics
+    """
+    rmse = np.sqrt(mean_squared_error(actual_values, predicted_values))
+    mae = mean_absolute_error(actual_values, predicted_values)
+    r2 = r2_score(actual_values, predicted_values)
+    return rmse, mae, r2
 
-def training_data(file_name, param_path):
+def evaluate(file_name, param_path):
     """
     Split the dataframe into train and test data and save it to the local directory
     """
@@ -21,48 +30,45 @@ def training_data(file_name, param_path):
     artifacts_dir = data['artifacts']['artifacts_dir']
 
     split_data_dir= data['artifacts']['split_data_dir']
-    train_data_filename= data['artifacts']['train']
+    test_data_filename= data['artifacts']['test']
 
-    train_data_path = os.path.join(artifacts_dir, split_data_dir, train_data_filename)
+    test_data_path = os.path.join(artifacts_dir, split_data_dir, test_data_filename)
 
-    train_data = pd.read_csv(train_data_path)
-    # Train data
-
-    train_y = train_data['quality']
-    train_x = train_data.drop(['quality'], axis=1)
-
-    alpha= params['model_params']['ElasticNet']['alpha']
-    l1_ratio= params['model_params']['ElasticNet']['l1_ratio']
-
-    random_state= params['base']['random_state']
-
-    lr = ElasticNet(alpha= alpha, l1_ratio= l1_ratio, random_state= random_state)
-    lr.fit(train_x, train_y)
+    # read the test data
+    test_data = pd.read_csv(test_data_path)
+    test_y = test_data["quality"]
+    test_x = test_data.drop("quality", axis=1)
     
 
-    # save the model in the local directory
+    # Model Directory
     model_dir = data["artifacts"]["model_dir"]
     model_filename = data["artifacts"]["model_filename"]
+    model_path = os.path.join(artifacts_dir, model_dir, model_filename)
 
-    model_dir = os.path.join(artifacts_dir, model_dir)
+    lr = joblib.load(model_path)
+    print('Model Loaded!!!!')
 
-    create_directory([model_dir])
+    # Predict the test data
+    predicted_values = lr.predict(test_x)
+    rmse, mae, r2 = evaluate_metrices(test_y, predicted_values)
 
-    model_path = os.path.join(model_dir, model_filename)
+    scores_dir = data["artifacts"]["report_dir"]
+    scores_filename = data["artifacts"]["scores"]
 
-    joblib.dump(lr, model_path)
+    scores_dir_path = os.path.join(artifacts_dir, scores_dir)
+    create_directory([scores_dir_path])
 
+    scores_filepath = os.path.join(scores_dir_path, scores_filename)
 
+    scores = {
+        "rmse": rmse,
+        "mae": mae,
+        "r2": r2
+        }
+    
+    save_reports(scores, scores_filepath)
 
-
-
-    print('Training Completed!!!!')
-
-
-
-
-
-
+    print("Evaluation Completed !!!!")
 
 
 if __name__ == '__main__':
@@ -72,4 +78,4 @@ if __name__ == '__main__':
 
     parsed_args = args.parse_args()
 
-    training_data(file_name= parsed_args.config, param_path= parsed_args.params) 
+    evaluate(file_name= parsed_args.config, param_path= parsed_args.params) 
