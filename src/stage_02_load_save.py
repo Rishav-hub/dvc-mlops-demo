@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 
 def split_and_savedata(file_name, param_path):
     """
-    Read data from a yaml file. 
+    Split the dataframe into train and test data and save it to the local directory
     """
     data = read_yaml(file_name)
     params = read_yaml(param_path)
