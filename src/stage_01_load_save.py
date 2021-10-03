@@ -6,7 +6,7 @@ import os
 
 def get_data(file_name):
     """
-    Read data from a yaml file.
+    Read data from a yaml file. 
     """
     data = read_yaml(file_name)
 
